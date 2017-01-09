@@ -1,5 +1,6 @@
 from constants import *
 from exception import TranspilerError
+from entity import Entity
 
 SPACE = ' '
 
@@ -31,6 +32,7 @@ def transpile_field(field_map, field_entity):
 """
 Session for transpiling non-conjuction operators.
 """
+
 def join_tokens(lst, token):
     _token = token.strip(' ')
     if _token == '':
@@ -73,34 +75,43 @@ def transpile_comparison(field_map, operator, field_entity, literal_entity):
         return join_tokens([transpiled_field, operator, transpiled_literal], SPACE)
 
 
+
 """
 Transpile the whole single clause.
 """
 
-def transpile_single_clause(field_map, clause_entity):
+def transpile_single_clause(field_map, clause_entity, macro_map={}):
     if not clause_entity.is_single_clause():
         raise TranspilerError("Clause (%s) is not a single clause." % (clause_entity))
+    elif clause_entity.is_macro():
+        macro_id = clause_entity.get_macro_id()
 
-    operator = clause_entity.get_operator()
-    params = clause_entity.get_arguments()
+        if macro_id not in macro_map:
+            raise TranspilerError("Macro id: (%s) does not exist." % (macro_id))
 
-    if operator in ['is_empty', 'not_empty']:
-        field_entity = params[0]
-        return {
-            'is_empty' : lambda m, f: transpile_is_empty(m, f),
-            'not_empty' : lambda m, f: transpile_not_empty(m, f)
-        } [operator] (field_map, field_entity)
+        non_marco_entity = Entity(macro_map[macro_id])
+        return transpile_single_clause(field_map, non_marco_entity)
     else:
-        # When it is a normal arithmatic comparison operator.
-        field_entity, literal_entity = params
-        return transpile_comparison(field_map, operator, field_entity, literal_entity)
+        operator = clause_entity.get_operator()
+        params = clause_entity.get_arguments()
+
+        if operator in ['is_empty', 'not_empty']:
+            field_entity = params[0]
+            return {
+                'is_empty' : lambda m, f: transpile_is_empty(m, f),
+                'not_empty' : lambda m, f: transpile_not_empty(m, f)
+            } [operator] (field_map, field_entity)
+        else:
+            # When it is a normal arithmatic comparison operator.
+            field_entity, literal_entity = params
+            return transpile_comparison(field_map, operator, field_entity, literal_entity)
 
 
 """
 Transpile compound clause.
 """
 
-def transpile_compound_clause(field_map, clause_entity):
+def transpile_compound_clause(field_map, clause_entity, macro_map={}):
     if not clause_entity.is_compound_clause():
         raise TranspilerError("Clause (%s) is not a compound clause." % (clause))
 
@@ -108,8 +119,8 @@ def transpile_compound_clause(field_map, clause_entity):
     clauses = clause_entity.get_arguments()
 
     add_paranthesis_if_compound = lambda clause: \
-    '(' + transpile_compound_clause(field_map, clause) + ')' \
-    if clause.is_compound_clause() else transpile_single_clause(field_map, clause)
+    '(' + transpile_compound_clause(field_map, clause, macro_map) + ')' \
+    if clause.is_compound_clause() else transpile_single_clause(field_map, clause, macro_map)
 
     return join_tokens(map(add_paranthesis_if_compound, clauses), operator)
 

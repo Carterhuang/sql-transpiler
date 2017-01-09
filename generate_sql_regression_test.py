@@ -11,8 +11,12 @@ class GenerateSQLRegressionTestCase(unittest.TestCase):
             4 : 'age'
         }
 
+        self.macro_map = {
+            "is_joe": ["=", ["field", 2], "joe"]
+        }
 
-    def test_tran(self):
+
+    def test_transpile_nested_statement(self):
         input_data = ["AND", ["!=", ["field", 3], None], ["OR", [">", ["field", 4], 25],
          ["=", ["field", 2], "Jerry"]]]
 
@@ -21,3 +25,11 @@ class GenerateSQLRegressionTestCase(unittest.TestCase):
             "SELECT * FROM data WHERE date_joined IS NOT NULL AND (age > 25 OR name = 'Jerry')"
         )
 
+
+    def test_transpile_statement_with_macro(self):
+        input_data = ["AND", ["<", ["field", 1],  5], ["macro", "is_joe"]]
+
+        self.assertEqual(
+            generate_sql(self.field_map, input_data, self.macro_map),
+            "SELECT * FROM data WHERE id < 5 AND name = 'joe'"
+        )
