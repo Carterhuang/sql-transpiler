@@ -75,22 +75,16 @@ def transpile_comparison(field_map, operator, field_entity, literal_entity):
         return join_tokens([transpiled_field, operator, transpiled_literal], SPACE)
 
 
-
 """
-Transpile the whole single clause.
+Section for transpiling clause(s).
 """
 
 def transpile_single_clause(field_map, clause_entity, macro_map={}):
+    """
+    Transpile the whole single clause.
+    """
     if not clause_entity.is_single_clause():
         raise TranspilerError("Clause (%s) is not a single clause." % (clause_entity))
-    elif clause_entity.is_macro():
-        macro_id = clause_entity.get_macro_id()
-
-        if macro_id not in macro_map:
-            raise TranspilerError("Macro id: (%s) does not exist." % (macro_id))
-
-        non_marco_entity = Entity(macro_map[macro_id])
-        return transpile_single_clause(field_map, non_marco_entity)
     else:
         operator = clause_entity.get_operator()
         params = clause_entity.get_arguments()
@@ -107,20 +101,50 @@ def transpile_single_clause(field_map, clause_entity, macro_map={}):
             return transpile_comparison(field_map, operator, field_entity, literal_entity)
 
 
-"""
-Transpile compound clause.
-"""
 
-def transpile_compound_clause(field_map, clause_entity, macro_map={}):
+def transpile_compound_clause(field_map, clause_entity, macro_map={}, subclause=False):
+    """
+    Transpile compound clause.
+    """
     if not clause_entity.is_compound_clause():
         raise TranspilerError("Clause (%s) is not a compound clause." % (clause))
 
     operator = clause_entity.get_operator()
-    clauses = clause_entity.get_arguments()
+    entities = clause_entity.get_arguments()
 
-    add_paranthesis_if_compound = lambda clause: \
-    '(' + transpile_compound_clause(field_map, clause, macro_map) + ')' \
-    if clause.is_compound_clause() else transpile_single_clause(field_map, clause, macro_map)
+    transpiled_entities = []
+    for sub_entity in entities:
+        if sub_entity.is_single_clause():
+            transpiled_entities.append(transpile_single_clause(field_map, sub_entity))
+        elif sub_entity.is_compound_clause():
+            transpiled_entities.append(transpile_compound_clause(field_map, sub_entity, subclause=True))
+        elif sub_entity.is_macro():
+            transpiled_entities.append(transpile_macro(field_map, sub_entity, macro_map, subclause=True))
+        else:
+            raise TranspilerError('Entity (%s) should be a clause but it is not.' % (sub_entity))
 
-    return join_tokens(map(add_paranthesis_if_compound, clauses), operator)
+    transpiled_compound_clause = join_tokens(transpiled_entities, operator)
 
+    return '(' + transpiled_compound_clause + ')' if subclause else transpiled_compound_clause
+
+
+
+def transpile_macro(field_map, macro_entity, macro_map={}, subclause=False):
+    """
+    Transpile macro entity.
+    """
+    macro_id = macro_entity.get_macro_id()
+
+    if macro_id not in macro_map:
+        raise TranspilerError("Macro id: (%s) does not exist." % (macro_id))
+
+    entity = Entity(macro_map[macro_id])
+
+    if entity.is_macro():
+        return transpile_macro(field_map, entity, macro_map)
+    elif entity.is_single_clause():
+        return transpile_single_clause(field_map, entity, macro_map)
+    elif entity.is_compound_clause():
+        return transpile_compound_clause(field_map, entity, macro_map, subclause=subclause)
+    else:
+        raise TranspilerError('Macro entity (%s) not recognized.' % (entity))

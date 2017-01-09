@@ -27,8 +27,7 @@ class Entity(object):
 
     def is_single_clause(self):
         item = self.__item
-        return type(item) is list and \
-            (item[HEADER] in NON_CONJUNCTION  or item[HEADER] == MACRO_HEADER)
+        return type(item) is list and item[HEADER] in NON_CONJUNCTION
 
 
     def is_compound_clause(self):
