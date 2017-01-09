@@ -12,6 +12,10 @@ class SingleClauseTestCase(unittest.TestCase):
             4 : 'age'
         }
 
+        self.macro_map = {
+            "is_joe": ["=", ["field", 2], "joe"]
+        }
+
     def test_transpile_string_literal(self):
         entity = Entity('string')
         self.assertEqual(transpile_literal(entity), "\'string\'")
@@ -109,6 +113,14 @@ class SingleClauseTestCase(unittest.TestCase):
             "date_joined IS NOT NULL AND (age > 25 OR name = 'Jerry')"
         )
 
+
+    def test_transpile_compound_with_macro(self):
+        clause_entity = Entity(["AND", ["<", ["field", 1],  5], ["macro", "is_joe"]])
+
+        self.assertEqual(
+            transpile_compound_clause(self.field_map, clause_entity, self.macro_map),
+            "id < 5 AND name = 'joe'"
+        )
 
 
 
