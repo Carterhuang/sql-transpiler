@@ -68,20 +68,20 @@ class SingleClauseTestCase(unittest.TestCase):
         )
 
 
-    def test_transpile_single_clause_equal(self):
+    def test_transpile_simple_clause_equal(self):
         clause_entity = Entity(['=', ['field', 3], None])
 
         self.assertEqual(
-            transpile_single_clause(self.field_map, clause_entity),
+            transpile_simple_clause(self.field_map, clause_entity),
             "date_joined IS NULL"
         )
 
 
-    def test_transpile_single_clause_greater(self):
+    def test_transpile_simple_clause_greater(self):
         clause_entity = Entity(['>', ['field', 4], 35])
 
         self.assertEqual(
-            transpile_single_clause(self.field_map, clause_entity),
+            transpile_simple_clause(self.field_map, clause_entity),
             "age > 35"
         )
 

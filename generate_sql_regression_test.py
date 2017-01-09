@@ -27,7 +27,7 @@ class GenerateSQLRegressionTestCase(unittest.TestCase):
         )
 
 
-    def test_transpile_single_clause_with_macro(self):
+    def test_transpile_simple_clause_with_macro(self):
         input_data = ["AND", ["<", ["field", 1],  5], ["macro", "is_joe"]]
 
         self.assertEqual(

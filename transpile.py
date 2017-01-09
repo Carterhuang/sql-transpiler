@@ -1,11 +1,15 @@
-from constants import *
 from exception import TranspilerError
 from entity import Entity
 
 SPACE = ' '
 
 """
-Session for transpiling field and literals.
+This file includes the core logic for transpilation. It maps
+each input data to the "where" portion of the SQL query.
+"""
+
+"""
+* Session for transpiling field and literals.
 """
 
 def transpile_literal(literal_entity):
@@ -13,6 +17,7 @@ def transpile_literal(literal_entity):
     value_type = type(literal)
 
     if value_type is str:
+        # If literal is a string, quote it.
         return "\'%s\'" % (literal)
     elif value_type is type(None):
         return 'NULL'
@@ -21,6 +26,7 @@ def transpile_literal(literal_entity):
 
 
 def transpile_field(field_map, field_entity):
+    """ Map field id to column name in the field_map """
     field_id = field_entity.get_field_id()
 
     if field_id not in field_map:
@@ -30,29 +36,41 @@ def transpile_field(field_map, field_entity):
 
 
 """
-Session for transpiling non-conjuction operators.
+* Session for transpiling non-conjuction operators.
 """
 
 def join_tokens(lst, token):
+    """
+    While joining each element in 'lst' with token,
+    we want to make sure each word is separated
+    with space.
+    """
     _token = token.strip(' ')
     if _token == '':
+        # token only has empty space(s) in it,
+        # we make standardize it to be one empty space.
         _token = ' '
     else:
-        # Paddle a space on the left and right side of the token.
+        # Paddle a space on the left and right side of the token,
+        # so that "AND" becomes " AND ".
         _token = ''.join([' ', _token, ' '])
     return _token.join(map(str, lst))
 
+
 def transpile_is_empty(field_map, field_entity):
+    """ transpiling 'is_empty' statement """
     field = transpile_field(field_map, field_entity)
     return  join_tokens([field, 'IS NULL'], SPACE)
 
 
 def transpile_not_empty(field_map, field_entity):
+    """ transpiling 'not_empty' statement """
     field = transpile_field(field_map, field_entity)
     return join_tokens([field, 'IS NOT NULL'], SPACE)
 
 
 def transpile_not_equal(field_map, field_entity, literal_entity):
+    """ ['!=', ['field' : 2], 25] -> age <> 25 """
     field = transpile_field(field_map, field_entity)
     literal = transpile_literal(literal_entity)
     return join_tokens([field, '<>', literal], SPACE)
@@ -62,6 +80,9 @@ def transpile_comparison(field_map, operator, field_entity, literal_entity):
     literal = literal_entity.get_literal_value()
 
     if literal == None  and operator in ['=', '!=']:
+        # This if statement transpile "<arg> != None"
+        # and "<arg> == None" to "<arg> IS NOT NULL"
+        # or "<arg> IS NULL".
         return {
             '=' : lambda fm, fe: transpile_is_empty(fm, fe),
             '!=' : lambda fm, fe: transpile_not_empty(fm, fe)
@@ -76,28 +97,29 @@ def transpile_comparison(field_map, operator, field_entity, literal_entity):
 
 
 """
-Section for transpiling clause(s).
+* Section for transpiling simple clause.
 """
 
-def transpile_single_clause(field_map, clause_entity, macro_map={}):
+def transpile_simple_clause(field_map, clause_entity, macro_map={}):
     """
-    Transpile the whole single clause.
+    Transpile the whole simple clause.
     """
-    if not clause_entity.is_single_clause():
-        raise TranspilerError("Clause (%s) is not a single clause." % (clause_entity))
+    if not clause_entity.is_simple_clause():
+        raise TranspilerError("Clause (%s) is not a simple clause." % (clause_entity))
     else:
         operator = clause_entity.get_operator()
-        params = clause_entity.get_arguments()
+        arguments = clause_entity.get_arguments()
 
         if operator in ['is_empty', 'not_empty']:
-            field_entity = params[0]
+            field_entity = arguments[0]
             return {
                 'is_empty' : lambda m, f: transpile_is_empty(m, f),
                 'not_empty' : lambda m, f: transpile_not_empty(m, f)
             } [operator] (field_map, field_entity)
         else:
-            # When it is a normal arithmatic comparison operator.
-            field_entity, literal_entity = params
+            # It is simple clause with one operator and two arguments, follows
+            # [<operator>, <field>, <literal>] format.
+            field_entity, literal_entity = arguments
             return transpile_comparison(field_map, operator, field_entity, literal_entity)
 
 
@@ -105,6 +127,8 @@ def transpile_single_clause(field_map, clause_entity, macro_map={}):
 def transpile_compound_clause(field_map, clause_entity, macro_map={}, subclause=False):
     """
     Transpile compound clause.
+    subclause parameter indicates whether this compound clause is
+    a sub clause of another compound clause.
     """
     if not clause_entity.is_compound_clause():
         raise TranspilerError("Clause (%s) is not a compound clause." % (clause))
@@ -113,9 +137,13 @@ def transpile_compound_clause(field_map, clause_entity, macro_map={}, subclause=
     entities = clause_entity.get_arguments()
 
     transpiled_entities = []
+
+    # Each sub entity can either be a simple clause, compound clause or macro.
+    # If it is a compound clause, then it needs to be wrapped in a pair of
+    # parenthesis.
     for sub_entity in entities:
-        if sub_entity.is_single_clause():
-            transpiled_entities.append(transpile_single_clause(field_map, sub_entity))
+        if sub_entity.is_simple_clause():
+            transpiled_entities.append(transpile_simple_clause(field_map, sub_entity))
         elif sub_entity.is_compound_clause():
             transpiled_entities.append(transpile_compound_clause(field_map, sub_entity, subclause=True))
         elif sub_entity.is_macro():
@@ -125,6 +153,8 @@ def transpile_compound_clause(field_map, clause_entity, macro_map={}, subclause=
 
     transpiled_compound_clause = join_tokens(transpiled_entities, operator)
 
+    # If the input compound clause is a subclause of another compound clause, then we wrap it up
+    # with '()'.
     return '(' + transpiled_compound_clause + ')' if subclause else transpiled_compound_clause
 
 
@@ -141,9 +171,11 @@ def transpile_macro(field_map, macro_entity, macro_map={}, subclause=False):
     entity = Entity(macro_map[macro_id])
 
     if entity.is_macro():
+        # This takes care of one macro point to another macro, which
+        # is weird, but possible.
         return transpile_macro(field_map, entity, macro_map)
-    elif entity.is_single_clause():
-        return transpile_single_clause(field_map, entity, macro_map)
+    elif entity.is_simple_clause():
+        return transpile_simple_clause(field_map, entity, macro_map)
     elif entity.is_compound_clause():
         return transpile_compound_clause(field_map, entity, macro_map, subclause=subclause)
     else:
