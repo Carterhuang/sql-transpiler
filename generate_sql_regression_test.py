@@ -12,9 +12,17 @@ class GenerateSQLRegressionTestCase(unittest.TestCase):
         }
 
         self.macro_map = {
-            "is_joe": ["=", ["field", 2], "joe"],
-            "over_100": ['AND', ['!=', ['field', 2], None], ['=', ['field', 1], 100]],
+            "is_joe" : ["=", ["field", 2], "joe"],
+            "over_100" : ['AND', ['!=', ['field', 2], None], ['=', ['field', 1], 100]]
         }
+
+    def test_transpile_empty_input(self):
+        input_data = []
+
+        self.assertEqual(
+            generate_sql(self.field_map, input_data),
+            "SELECT * FROM data"
+        )
 
 
     def test_transpile_nested_statement(self):

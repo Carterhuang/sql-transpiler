@@ -18,6 +18,9 @@ def generate_sql(field_map, input_data, macro_map={}):
     :type macro_map: dict
     :rtype: str
     """
+    if input_data == []:
+        return SQL_HEADER
+
     entity = Entity(input_data)
 
     where_clause = ''
@@ -30,5 +33,5 @@ def generate_sql(field_map, input_data, macro_map={}):
     else:
         raise TranspilerError("Input (%s) not recognized." % (input_data))
 
-    return SQL_HEADER + ' '+ where_clause
+    return SQL_HEADER + ' WHERE '+ where_clause
 
