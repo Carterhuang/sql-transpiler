@@ -1,5 +1,6 @@
 from exception import TranspilerError
 from constants import *
+from util import normalize_keyword
 
 """
 In this transpiler implementation, every non-operator item is
@@ -15,6 +16,8 @@ For example,
 class Entity(object):
     def __init__(self, item):
         self.__item = item
+        if type(item) is list:
+            self.__item[HEADER] = normalize_keyword(item[HEADER])
 
 
     def is_literal_value(self):

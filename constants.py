@@ -1,6 +1,6 @@
 
-OPERATORS = ['AND', 'OR', '<', '>', '=', '!=', 'is_empty', 'not_empty']
-CONJUNCTION = ['AND', 'OR']
+OPERATORS = ['and', 'or', '<', '>', '=', '!=', 'is_empty', 'not_empty']
+CONJUNCTION = ['and', 'or']
 NON_CONJUNCTION = ['<', '>', '=', '!=', 'is_empty', 'not_empty']
 
 SQL_HEADER = 'SELECT * FROM data WHERE'

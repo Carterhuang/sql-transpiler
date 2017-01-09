@@ -1,5 +1,6 @@
 from exception import TranspilerError
 from entity import Entity
+from util import join_tokens
 
 SPACE = ' '
 
@@ -38,24 +39,6 @@ def transpile_field(field_map, field_entity):
 """
 * Session for transpiling non-conjuction operators.
 """
-
-def join_tokens(lst, token):
-    """
-    While joining each element in 'lst' with token,
-    we want to make sure each word is separated
-    with space.
-    """
-    _token = token.strip(' ')
-    if _token == '':
-        # token only has empty space(s) in it,
-        # we make standardize it to be one empty space.
-        _token = ' '
-    else:
-        # Paddle a space on the left and right side of the token,
-        # so that "AND" becomes " AND ".
-        _token = ''.join([' ', _token, ' '])
-    return _token.join(map(str, lst))
-
 
 def transpile_is_empty(field_map, field_entity):
     """ transpiling 'is_empty' statement """

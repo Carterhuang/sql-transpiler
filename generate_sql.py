@@ -1,7 +1,7 @@
 from transpile import transpile_simple_clause, transpile_compound_clause
 from entity import Entity
 from constants import *
-
+from exception import TranspilerError
 
 def generate_sql(field_map, input_data, macro_map={}):
     """
@@ -28,7 +28,7 @@ def generate_sql(field_map, input_data, macro_map={}):
     elif entity.is_macro():
         where_clause = transpile_macro(field_map, entity, macro_map)
     else:
-        raise TranspileError("Input (%s) not recognized." % (input_data))
+        raise TranspilerError("Input (%s) not recognized." % (input_data))
 
     return SQL_HEADER + ' '+ where_clause
 
